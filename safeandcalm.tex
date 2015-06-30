@@ -130,30 +130,46 @@ ACID, CAP and CALM all spoke of ``Consistency''.  They had three different defin
 
 What we want to focus on is the way that uncontrolled concurrency can affect program semantics.  Hence Confluence (the real C in CALM) is a good touchstone.
 
-\subsection{The CALM Theorem and Extensions}
-Intuition from dataflow and streaming: what kinds of operations need to wait for something other than data?  
+\subsection{The CALM Theorem}
+Intuition from dataflow and streaming: what kinds of operations need to wait for something other than data?
 
-Enhance to ``Focused CALM'' analysis w.r.t.\ a subset of the tables in a program.  Trivial case: focus on a monotone set of rules/tables, but there exists a totally disconnected non-monotone set of rules/tables.  All other cases are subtler variants of this.
+Discuss motononicity: the logic programming and set view.  The more generalized lattice view; make sure we get Boolean lattices in there; we'll need them below.
 
-\subsection{Ensuring Safety via Invariants}
-The CALM theorem provides a formal foundation for ensuring confluence of outcomes.  Bailis, et al.~considered the \emph{safety} question of whether states ``along the way'' to a final result could be given guarantees as well.  This is captured via the notion of \emph{Invariant Confluence}: the assurance that non-deterministic choices always lead to states where desired invariants hold.
+\subsection{Focused CALM}
 
-Invariant Confluence is captured naturally in the framework of the CALM Theorem: after all, invariants are, by nature, logic statements.
+Enhance to analysis w.r.t.\ a \emph{monotone focus}: a selected set of lattice variables in a program.  Trivial case: focus on a monotone set of rules/tables, but there exists a totally disconnected non-monotone set of rules/tables.  All other cases are subtler variants of this.
 
-Consider an invariant I(D) that must hold over any database state D.  Using DeMorgan's Law we can write its negation Not\_I, and then introduce a definition of safety as follows:
+\section{Ensuring Safety via Invariants}
+
+The CALM theorem provides a formal foundation for ensuring confluence of outcomes.  Bailis, et al.~considered the \emph{safety} question of whether states ``along the way'' to a final result could be given guarantees as well.
+
+What can we say about a monotone program (or a monotone focus) during program execution?  We have a lower bound on its final state!  Question: when is such a lower bound useful?
+
+\subsection{Invariant Confluence}
+Bailis et al. captured this notion via \emph{Invariant Confluence}: the assurance that non-deterministic choices in (distributed) program ordering will always lead to states where desired invariants hold.  Discuss in some detail.
+
+\subsection{CALMly assessing Invariant Confluence}
+The notion of IC can be captured---and in many cases coded and statically checked---as a monotonicity constraint.
+Consider a program focus consisting solely of Boolean lattices that assert the ``invariants'' to be checked in the program. We are interested in the following question: given an initial program state where these lattices all evaluate to true, \emph{are they guaranteed to remain true throughout execution}?.  If the program focus is monotone, the answer is clearly yes!
+
+Using this intuition, we can provide CALM-based proofs of the IC-satisfying examples in Bailis, et al.  However, unlike Bailis, et al., our proof technique is entirely syntactic, and can be checked mechanically by a compiler.  This is big shit! 
+
+
+\emph{I attempted an initial stab below that doesn't use lattices per se -- just propositional tables.  Some sloppiness below as to I being a single invariant or the set of all invariants.}
+Consider a single invariant I(D) that must hold over any database state D.  Using DeMorgan's Law we can write its negation Not\_I, and then introduce a definition of safety as follows:
 
 \begin{verbatim}
   failure <= Not_I(D)
-  safety <= safety {|s| [true] if failure.is_empty?}
+  safety <= safety {|s| [] if failure.is_empty?}
 \end{verbatim}
 
-\texttt{failure} and \texttt{safety} are not keywords in Bloom; they are just tables serving as boolean variable: empty when false (i.e., \emph{propositions}). We capture the semantics of \texttt{safety} as a program rewrite, by adding the predicate \texttt{and safety.exists?} to every rule.  Upon execution of such a Bloom program, it terminates with a non-empty failure predicate whenever invariant failure is detected.  Call this the \emph{invariant rewrite of P} or $P^I$.  
+\texttt{failure} and \texttt{safety} are not keywords in Bloom; they are just tables serving as boolean variables: empty when false (i.e., \emph{propositions}). We capture the semantics of \texttt{safety} as a program rewrite, by adding the predicate \texttt{and safety.exists?} to every rule.  Upon execution of such a Bloom program, it terminates with a non-empty failure predicate whenever invariant failure is detected.  Call this the \emph{invariant rewrite of P} or $P^I$.  
 
-What coordination-free programs have Invariant Confluence?   Those $P_I$ that are CALM with respect to $I$. As an example, consider any monotone program $P$, a set of monotone invariants $I$, and the invariant rewrite $P^I$.  Note that the rewritten rules of $P$ depend positively (monotonically) on \texttt{safety}, which in turn depends negatively (non-monotonically) on \texttt{failure}.  Note also that \texttt{failure} depends monotonically on $I$, and transitively may depend on $P$.
+What coordination-free programs have Invariant Confluence?   Those $P_I$ that are CALM with respect to program focus $I$. As an example, consider any monotone program $P$, a set of monotone invariants $I$, and the invariant rewrite $P^I$.  Note that the rewritten rules of $P$ depend positively (monotonically) on \texttt{safety}, which in turn depends negatively (non-monotonically) on \texttt{failure}.  Note also that \texttt{failure} depends monotonically on $I$, and transitively may depend on $P$.
 
-We don't care about cases where I(D) is false: i.e. programs that ``start out'' with invariants violated.  We want to ensure that if \texttt{safety} gets into the full state (invariants are satisfied) it stays full.  That is, \texttt{safety} is \emph{monotone} in $P_I$.   Based on the dependency structure of the rewrite, as shown in Figure~\ref{fig:invariant-rewrite}, this is true exactly when \texttt{failure} is \emph{anti-monotone} in $P_I$: if it gets into the empty state it stays empty.  
+We don't care about cases where $I(D)$ is initiated with a false invariant.  We want to ensure that if \texttt{safety} gets into the full state (invariants are satisfied) it stays full.  That is, \texttt{safety} is \emph{monotone} in $P_I$.   Based on the dependency structure of the rewrite, as shown in Figure~\ref{fig:invariant-rewrite}, this is true exactly when \texttt{failure} is \emph{anti-monotone} in $P_I$: if \texttt{failure} gets into the empty state it stays empty.  
 
-Consider the case where the invariants $I$ are all monotone--both with respect to $P$ and with respect to each other.  In that case, $\mbox{\texttt{safety}} \cup P \cup I \cup \mbox{\texttt{failure}}$ is monotone. The only non-monotonic dependency is between the propositional predicates \texttt{failure} and \texttt{safety}.  It is easy to show in that case that the entire program is monotone with respect to $P$.
+Consider the case where the invariant focus $I$ is monotone.  In that case, $\mbox{\texttt{safety}} \cup P \cup I \cup \mbox{\texttt{failure}}$ is monotone. The only non-monotonic dependency is between the propositional predicates \texttt{failure} and \texttt{safety}.  It is easy to show in that case that the entire program is monotone with respect to $P$.
 
 \emph{little lemma here.}
 
