@@ -115,12 +115,19 @@ Gloss on Ameloot's model.
 \label{sec:costs}
 \emph{It's really quite bad in a lot of circumstances.  And it's going to get worse.}
 \subsection{Coordination Ruins Everything Around Me}
-\emph{Some history here.  First driven by distributed systems and speed of light: including LADIS quotes, CAP theorem.  Also emerging in high-performance systems today: Abadi, Hekaton, Kohler/Kaashoek.  Even in new places like ML (Hogwild!, etc.)  A shred of boilerplate below.}
+\emph{Some history here.  First driven by distributed systems and speed of light: including LADIS quotes, CAP theorem.  Also emerging in high-performance systems today: Abadi, Hekaton, Kohler/Kaashoek.  Even in new places like ML (Hogwild!, etc.)  Some shreds of boilerplate below.}
 
 This issue was most memorably illustrated by the CAP Theorem, which observed that very long delays among coordinating processes (i.e., ``partitions'') might require programmers to give up on familiar models of memory ``consistency'', specifically linearizability.  As the CAP Theorem became folklore in the developer community, there was an increasing desire 
 
 
 \emph{A bottleneck analysis goes here.  The goal is a model that explains when coordination is expensive relative to latency and/or throughput. The model can start with distributed systems, but should connect to on-chip performance trends as well.}
+
+This could start with some of the simple speed-of-light stuff Peter B did, but I’d like to see a discussion of processor trends, network BW and latency trends, and possibly for multicore/NUMA a discussion of trends in cache miss and remote memory access costs.  I think the simple argument we’d like to make at various scales is based on:
+\begin{itemize}
+	\item “Far” communication cost increasingly dominates “nearby" compute cost
+	\item The “far” communication cost for data dependencies can with sufficient optimization be avoided/hidden (pipelines, caches, etc), so that coordination avoiding programs' goodput should achieve HW throughput
+	\item Hence the main barrier to goodput is coordination
+\end{itemize}
 
 \section{Why Coordinate?}
 First, hammer home the point that this is a question of tractability.  Start with a ``strawman'' scenario: suppose we are forbidden from using coordination, as suggested by Hamilton and espoused by the NoSQL crowd.  \textbf{Question 1:} What ``correct'' programs can we write in this fashion, and what programs are impossible?  If we can answer this question, we can move on to the constructive question:  \textbf{Question 2:} If a program is expressible without coordination, can I find an implementation, and will it be faster than a more straightforward solution that uses coordination?  We address the first question in this section, and turn to the second in Section~\ref{sec:patterns}.
